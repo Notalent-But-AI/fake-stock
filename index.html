@@ -202,7 +202,7 @@ td.sticky{position:sticky;left:0;z-index:2;text-align:left;padding-left:12px;bac
   display:flex;align-items:center;justify-content:center;margin-left:2px;
 }
 .chat-icon .bubble svg{width:12px;height:12px;fill:#fff}
-.chat-text{font-size:13px;color:var(--text);flex:1}
+.chat-text{font-size:13px;color:var(--text);flex:1;transition:opacity 0.3s}
 
 /* ===== BOTTOM NAV ===== */
 .bottomnav{
@@ -891,6 +891,34 @@ function renderAccount(){
     tbody.appendChild(r1); tbody.appendChild(r2);
   });
 }
+
+// ====== CHAT BANNER ROTATION ======
+const chatMessages = [
+  '실시간 대화중 ! 의견 또는 질문 모두 환영해요',
+  '🔥 엔비디아 실적 발표 D-7 ! 예상치 토론중',
+  '테슬라 FSD 업데이트 소식 공유합니다',
+  '오늘 나스닥 흐름 어떻게 보시나요?',
+  '💰 이번주 FOMC 금리 동결 예상 의견 많음',
+  '팔란티어 정부계약 수주 소식 떴다!!',
+  '코인베이스 SEC 소송 진행상황 정리해봄',
+  '📊 AI 반도체 섹터 분석 올렸어요 확인해보세요',
+  '환율 1480원 돌파... 달러 매수 타이밍?',
+  'AMD MI300X 벤치마크 결과 공유합니다',
+  '🚀 아이온큐 양자컴 계약 체결! 급등중',
+  '오늘 장전 시황 브리핑 시작합니다~',
+  '배당 ETF vs 성장주 뭐가 나을까요?',
+  '매수 타이밍 고민중... 의견 부탁드려요',
+  '⚡ 프리장 선물 +1.2% 오늘 기대해봐도?',
+];
+function rotateChatMsg(){
+  const el = document.querySelector('.chat-text');
+  el.style.opacity = '0';
+  setTimeout(()=>{
+    el.textContent = chatMessages[Math.floor(Math.random()*chatMessages.length)];
+    el.style.opacity = '1';
+  }, 300);
+}
+setInterval(rotateChatMsg, 4000);
 
 // ====== INIT ======
 renderWatchlist();
