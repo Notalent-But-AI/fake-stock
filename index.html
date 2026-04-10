@@ -609,6 +609,53 @@ function submitOrder(){
 }
 
 // ====== CHART FUNCTIONS ======
+let chartData = [];
+let currentPeriod = '1M';
+const periodMap = {
+  '1D': {range:'1d', interval:'5m'},
+  '1W': {range:'5d', interval:'15m'},
+  '1M': {range:'1mo', interval:'1d'},
+  '3M': {range:'3mo', interval:'1d'},
+  '1Y': {range:'1y', interval:'1wk'},
+  'ALL': {range:'5y', interval:'1mo'}
+};
+
+async function fetchChartData(period){
+  const {range, interval} = periodMap[period];
+  try {
+    const data = await fetchYahoo('NVDA', range, interval);
+    const result = data.chart.result[0];
+    const closes = result.indicators.quote[0].close;
+    const highs = result.indicators.quote[0].high;
+    const lows = result.indicators.quote[0].low;
+    const volumes = result.indicators.quote[0].volume;
+    chartData = closes.filter(c=>c!==null);
+
+    // Update chart metrics
+    if(chartData.length>0){
+      const open = closes[0]||chartData[0];
+      const high = Math.max(...highs.filter(h=>h!==null));
+      const low = Math.min(...lows.filter(l=>l!==null));
+      const totalVol = volumes.filter(v=>v!==null).reduce((a,b)=>a+b,0);
+      const meta = result.meta;
+
+      const metricsEl = document.querySelectorAll('.chart-metric-value');
+      metricsEl[0].textContent = '$'+open.toFixed(2);
+      metricsEl[1].textContent = '$'+high.toFixed(2);
+      metricsEl[1].className = 'chart-metric-value c-red';
+      metricsEl[2].textContent = '$'+low.toFixed(2);
+      metricsEl[2].className = 'chart-metric-value c-blue';
+      metricsEl[3].textContent = (totalVol/1e6).toFixed(1)+'M';
+      metricsEl[4].textContent = '$'+(meta.fiftyTwoWeekHigh||high).toFixed(2);
+      metricsEl[5].textContent = '$'+(meta.fiftyTwoWeekLow||low).toFixed(2);
+    }
+    drawChart();
+  } catch(e){
+    console.warn('차트 데이터 조회 실패:', e.message);
+    drawChart();
+  }
+}
+
 function drawChart(){
   const canvas = document.getElementById('chartCanvas');
   const ctx = canvas.getContext('2d');
@@ -621,75 +668,116 @@ function drawChart(){
   ctx.scale(dpr,dpr);
   const w=rect.width, h=rect.height;
 
-  // Generate fake price data
-  const points=[];
-  let price=165;
-  for(let i=0;i<=60;i++){
-    price += (Math.random()-0.42)*3;
-    price = Math.max(150,Math.min(195,price));
-    points.push(price);
-  }
-  points[points.length-1]=183.51;
+  const points = chartData.length>1 ? chartData : [170,172,168,175,178,173,180,183,179,185,183.51];
+  const curPrice = points[points.length-1];
+  const startPrice = points[0];
+  const isUp = curPrice >= startPrice;
 
-  const min=Math.min(...points)-5;
-  const max=Math.max(...points)+5;
+  const min=Math.min(...points)-2;
+  const max=Math.max(...points)+2;
 
   // Grid
   ctx.strokeStyle='#eee';ctx.lineWidth=0.5;
   for(let i=0;i<5;i++){
     const y=20+i*(h-40)/4;
     ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();
+    ctx.fillStyle='#ccc';ctx.font='10px sans-serif';
+    const priceLabel = max - (max-min)*(i/4);
+    ctx.fillText('$'+priceLabel.toFixed(0), 4, y-3);
   }
+
+  const lineColor = isUp ? '#d92525' : '#2460e0';
+  const fillTop = isUp ? 'rgba(217,37,37,0.15)' : 'rgba(36,96,224,0.15)';
+  const fillBot = isUp ? 'rgba(217,37,37,0)' : 'rgba(36,96,224,0)';
 
   // Price line
   ctx.beginPath();
-  ctx.strokeStyle='var(--red)';ctx.lineWidth=2;
+  ctx.strokeStyle=lineColor;ctx.lineWidth=2;
   points.forEach((p,i)=>{
-    const x=i*(w/60);
+    const x=i*(w/(points.length-1));
     const y=h-20-(p-min)/(max-min)*(h-40);
     i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
   });
   ctx.stroke();
 
   // Gradient fill
-  const lastX=60*(w/60);
   const gradient=ctx.createLinearGradient(0,0,0,h);
-  gradient.addColorStop(0,'rgba(217,37,37,0.15)');
-  gradient.addColorStop(1,'rgba(217,37,37,0)');
+  gradient.addColorStop(0,fillTop);
+  gradient.addColorStop(1,fillBot);
+  const lastX=(points.length-1)*(w/(points.length-1));
   ctx.lineTo(lastX,h);ctx.lineTo(0,h);ctx.closePath();
   ctx.fillStyle=gradient;ctx.fill();
 
-  // Current price line
-  const curY=h-20-(183.51-min)/(max-min)*(h-40);
-  ctx.setLineDash([4,4]);ctx.strokeStyle='var(--red)';ctx.lineWidth=1;
+  // Current price dashed line
+  const curY=h-20-(curPrice-min)/(max-min)*(h-40);
+  ctx.setLineDash([4,4]);ctx.strokeStyle=lineColor;ctx.lineWidth=1;
   ctx.beginPath();ctx.moveTo(0,curY);ctx.lineTo(w,curY);ctx.stroke();
   ctx.setLineDash([]);
 
   // Price label
-  ctx.fillStyle='var(--red)';ctx.font='bold 11px Noto Sans KR';
-  ctx.fillText('$183.51',w-55,curY-6);
+  ctx.fillStyle=lineColor;ctx.font='bold 11px Noto Sans KR';
+  ctx.fillText('$'+curPrice.toFixed(2),w-60,curY-6);
 }
 
 function setChartPeriod(period){
+  currentPeriod = period;
   document.querySelectorAll('.chart-period-btn').forEach(b=>b.classList.remove('active'));
   event.target.classList.add('active');
-  drawChart();
+  fetchChartData(period);
 }
 
-// ====== ACCOUNT RENDER (original) ======
+// ====== YAHOO FINANCE API (CORS proxy) ======
+const PROXY = 'https://corsproxy.io/?url=';
+
+async function fetchYahoo(symbol, range='1d', interval='1d'){
+  const url = `${PROXY}${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}`)}`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('Yahoo API error');
+  return await res.json();
+}
+
 async function fetchPrices(){
   try {
-    const res = await fetch('/api/prices');
-    if(!res.ok) throw new Error('API error');
-    const json = await res.json();
-    if(!json.ok) throw new Error(json.error);
-    const d = json.data;
-    stocks.forEach(s => {
-      const tick = d[s.ticker];
-      if(tick){ s.currentPrice=tick.price; s.dayChange=tick.change; s.dayPct=tick.changePct; }
+    const symbols = ['NVDA','TSLA','USDKRW=X','AAPL','MSFT','AMZN','GOOGL','META','AMD','PLTR','COIN','SMCI','SOFI','IONQ','RGTI','RBLX','CRWD'];
+    const results = await Promise.allSettled(symbols.map(s=>fetchYahoo(s)));
+
+    const priceMap = {};
+    results.forEach((r,i)=>{
+      if(r.status==='fulfilled' && r.value.chart && r.value.chart.result){
+        const meta = r.value.chart.result[0].meta;
+        const sym = symbols[i].replace('=X','');
+        priceMap[sym] = {
+          price: meta.regularMarketPrice,
+          prevClose: meta.chartPreviousClose || meta.previousClose,
+          change: meta.regularMarketPrice - (meta.chartPreviousClose || meta.previousClose),
+          pct: ((meta.regularMarketPrice - (meta.chartPreviousClose || meta.previousClose)) / (meta.chartPreviousClose || meta.previousClose)) * 100
+        };
+      }
     });
-    if(d.USDKRW) RATE = d.USDKRW.price;
+
+    // Update portfolio stocks
+    stocks.forEach(s=>{
+      const d = priceMap[s.ticker];
+      if(d){ s.currentPrice=d.price; s.dayChange=d.change; s.dayPct=d.pct; }
+    });
+    if(priceMap.USDKRW) RATE = priceMap.USDKRW.price;
+
+    // Update watchlist
+    watchlistStocks.forEach(s=>{
+      const d = priceMap[s.ticker];
+      if(d){ s.price=d.price; s.change=d.change; s.pct=d.pct; }
+    });
+
+    // Update rank list
+    rankStocks.forEach(s=>{
+      const d = priceMap[s.ticker];
+      if(d){ s.price=d.price; s.change=d.change; s.pct=d.pct; }
+    });
+
+    renderWatchlist();
+    renderRankList();
     renderAccount();
+    console.log('실시간 시세 업데이트 완료', new Date().toLocaleTimeString());
   } catch(e) {
     console.warn('시세 조회 실패:', e.message);
     renderAccount();
@@ -756,8 +844,8 @@ renderWatchlist();
 renderRankList();
 renderCommunity();
 fetchPrices();
-setInterval(fetchPrices, 10000);
-setTimeout(drawChart, 100);
+setInterval(fetchPrices, 15000);
+fetchChartData('1M');
 window.addEventListener('resize', drawChart);
 </script>
 </body>
