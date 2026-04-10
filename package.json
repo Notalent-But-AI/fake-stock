@@ -5,6 +5,7 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "canvas": "^3.2.3",
     "express": "^4.21.0"
   }
 }
