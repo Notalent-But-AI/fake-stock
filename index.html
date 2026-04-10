@@ -726,14 +726,14 @@ function setChartPeriod(period){
   fetchChartData(period);
 }
 
-// ====== YAHOO FINANCE API (CORS proxy) ======
-const PROXY = 'https://corsproxy.io/?url=';
-
+// ====== YAHOO FINANCE API (allorigins CORS proxy) ======
 async function fetchYahoo(symbol, range='1d', interval='1d'){
-  const url = `${PROXY}${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}`)}`;
+  const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}`;
+  const url = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
   const res = await fetch(url);
-  if(!res.ok) throw new Error('Yahoo API error');
-  return await res.json();
+  if(!res.ok) throw new Error('Proxy error');
+  const wrapper = await res.json();
+  return JSON.parse(wrapper.contents);
 }
 
 async function fetchPrices(){
