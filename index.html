@@ -400,10 +400,10 @@ td.sticky{position:sticky;left:0;z-index:2;text-align:left;padding-left:12px;bac
       <div class="summary-grid">
         <div class="sg-item"><span class="l">매입금액</span><span class="v" id="sBuyKRW">0</span></div>
         <div class="sg-item"><span class="l">평가금액</span><span class="v" id="sEvalKRW">0</span></div>
-        <div class="sg-item"><span class="l">실현손익</span><span class="v">0</span></div>
+        <div class="sg-item"><span class="l">실현손익</span><span class="v" id="sRealizedKRW">0</span></div>
         <div class="sg-item"><span class="l"></span><span class="v"></span></div>
-        <div class="sg-item"><span class="l">원화예수금 ↻</span><span class="v"></span></div>
-        <div class="sg-item"><span class="l">원화추정자산</span><span class="v"></span></div>
+        <div class="sg-item"><span class="l">원화예수금 ↻</span><span class="v" id="sDepositKRW">0</span></div>
+        <div class="sg-item"><span class="l">원화추정자산</span><span class="v" id="sEstimateKRW">0</span></div>
       </div>
     </div>
     <div class="summary-ranking">
@@ -968,6 +968,10 @@ function renderAccount(){
   sPct.className='summary-pct '+(tPnlKRW>=0?'c-red':'c-blue');
   document.getElementById('sBuyKRW').textContent=fi(tBuyKRW);
   document.getElementById('sEvalKRW').textContent=fi(tEvalKRW);
+  const deposit = currentAccount==='main' ? 3241850 : 1500000;
+  document.getElementById('sDepositKRW').textContent=fi(deposit);
+  document.getElementById('sEstimateKRW').textContent=fi(tEvalKRW + deposit);
+  document.getElementById('sRealizedKRW').textContent='0';
 
   // Update order page price (첫 번째 종목 기준)
   if(activeStocks.length>0){
