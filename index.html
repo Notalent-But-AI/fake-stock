@@ -492,6 +492,26 @@ function switchPage(pageId){
   document.querySelector(`.bnav-item[data-page="${pageId}"]`).classList.add('active');
 }
 
+// ====== 종목 클릭 → 차트 이동 ======
+let currentChartTicker = 'NVDA';
+let currentChartName = '엔비디아';
+
+function goToChart(ticker, name, price, change, pct){
+  currentChartTicker = ticker;
+  currentChartName = name;
+  const isUp = change >= 0;
+  const cls = isUp ? 'c-red' : 'c-blue';
+  const sign = change >= 0 ? '+' : '';
+  document.querySelector('#page-chart .chart-stock-header h2').textContent = name;
+  document.querySelector('#page-chart .chart-stock-header span').textContent = ticker;
+  document.getElementById('chartPrice').textContent = '$' + price.toFixed(2);
+  document.getElementById('chartPrice').className = 'chart-price-big ' + cls;
+  document.getElementById('chartChange').textContent = `${sign}$${change.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
+  document.getElementById('chartChange').className = cls;
+  switchPage('chart');
+  fetchChartData(currentPeriod);
+}
+
 // ====== WATCHLIST RENDER ======
 function renderWatchlist(){
   const body = document.getElementById('watchlistBody');
@@ -499,7 +519,7 @@ function renderWatchlist(){
     const cls = s.change>=0?'c-red':'c-blue';
     const sign = s.change>=0?'+':'';
     const sparkData = generateSparkline(s.change>=0);
-    return `<div class="wl-item">
+    return `<div class="wl-item" onclick="goToChart('${s.ticker}','${s.name}',${s.price},${s.change},${s.pct})" style="cursor:pointer">
       <div class="wl-info"><div class="wl-name">${s.name}</div><div class="wl-ticker">${s.ticker}</div></div>
       <svg class="wl-sparkline" viewBox="0 0 60 30">${sparkData}</svg>
       <div class="wl-price">
@@ -530,7 +550,7 @@ function renderRankList(){
   body.innerHTML = rankStocks.map((s,i)=>{
     const cls = s.change>=0?'c-red':'c-blue';
     const sign = s.change>=0?'+':'';
-    return `<div class="cp-rank-item">
+    return `<div class="cp-rank-item" onclick="goToChart('${s.ticker}','${s.name}',${s.price},${s.change},${s.pct})" style="cursor:pointer">
       <div class="cp-rank-num">${i+1}</div>
       <div class="cp-rank-info"><div class="cp-rank-name">${s.name}</div><div class="cp-rank-ticker">${s.ticker}</div></div>
       <div class="cp-rank-vol">${s.vol}</div>
@@ -623,7 +643,7 @@ const periodMap = {
 async function fetchChartData(period){
   const {range, interval} = periodMap[period];
   try {
-    const data = await fetchYahoo('NVDA', range, interval);
+    const data = await fetchYahoo(currentChartTicker, range, interval);
     const result = data.chart.result[0];
     const closes = result.indicators.quote[0].close;
     const highs = result.indicators.quote[0].high;
@@ -668,7 +688,8 @@ function drawChart(){
   ctx.scale(dpr,dpr);
   const w=rect.width, h=rect.height;
 
-  const points = chartData.length>1 ? chartData : [170,172,168,175,178,173,180,183,179,185,183.51];
+  const fallbackPrice = stocks.find(s=>s.ticker===currentChartTicker)?.currentPrice || watchlistStocks.find(s=>s.ticker===currentChartTicker)?.price || 100;
+  const points = chartData.length>1 ? chartData : Array.from({length:10},(_,i)=>fallbackPrice*(0.95+Math.random()*0.1)).concat([fallbackPrice]);
   const curPrice = points[points.length-1];
   const startPrice = points[0];
   const isUp = curPrice >= startPrice;
