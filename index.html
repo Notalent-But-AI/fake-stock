@@ -117,6 +117,12 @@ body{
 .account-row{display:flex;align-items:center;gap:8px;padding:12px 16px;flex-shrink:0}
 .account-select{display:flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-weight:600;flex:1}
 .account-select svg{width:12px;height:12px;stroke:#888;fill:none;stroke-width:2.5;flex-shrink:0;margin-left:auto}
+.account-dropdown{display:none;position:absolute;top:100%;left:0;right:0;margin-top:4px;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.12);z-index:10;overflow:hidden}
+.account-dropdown.show{display:block}
+.account-dropdown-item{padding:12px;font-size:13px;font-weight:600;border-bottom:1px solid var(--border);cursor:pointer}
+.account-dropdown-item:last-child{border-bottom:none}
+.account-dropdown-item:active{background:var(--bg2)}
+.account-dropdown-item.selected{color:var(--blue)}
 .refresh-btn{width:40px;height:40px;border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;background:#fff}
 .refresh-btn svg{width:20px;height:20px;stroke:#76b900;fill:none;stroke-width:2}
 .acc-btn{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-weight:500;white-space:nowrap;background:#fff}
@@ -364,9 +370,13 @@ td.sticky{position:sticky;left:0;z-index:2;text-align:left;padding-left:12px;bac
     <div class="subtab">타사 잔고</div>
   </div>
   <div class="account-row">
-    <div class="account-select">
+    <div class="account-select" onclick="toggleAccountDropdown()" style="cursor:pointer;position:relative">
       <span id="accountNum">5649-6275 [위탁종합] 정성훈</span>
       <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+      <div class="account-dropdown" id="accountDropdown">
+        <div class="account-dropdown-item" onclick="event.stopPropagation();selectAccount('main')">5649-6275 [위탁종합] 정성훈</div>
+        <div class="account-dropdown-item" onclick="event.stopPropagation();selectAccount('custom')">8901-7479 [위탁종합] 정성훈</div>
+      </div>
     </div>
     <div class="refresh-btn"><svg viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg></div>
     <div class="acc-btn">모으기<br>잔고</div>
@@ -926,15 +936,30 @@ async function fetchPrices(){
   }
 }
 
+function getActiveStocks(){
+  if(currentAccount==='main') return stocks;
+  // custom 계좌: 설정 탭 데이터를 stocks 형태로 변환
+  return settingsStocks.filter(s=>s.ticker && s.qty>0).map(s=>{
+    const curPrice = getStockPrice(s.ticker);
+    const name = tickerNames[s.ticker] || s.ticker;
+    return {
+      name, ticker:s.ticker, qty:s.qty, avgPrice:s.avgPrice,
+      currentPrice: curPrice, breakEven: s.avgPrice*1.005,
+      dayChange:0, dayPct:0, fee:0, tax:0
+    };
+  });
+}
+
 function renderAccount(){
+  const activeStocks = getActiveStocks();
   let tBuyKRW=0, tEvalKRW=0;
-  const data = stocks.map(s=>{
-    const buy=s.qty*s.avgPrice, ev=s.qty*s.currentPrice, pnl=ev-buy, pct=(pnl/buy)*100;
+  const data = activeStocks.map(s=>{
+    const buy=s.qty*s.avgPrice, ev=s.qty*s.currentPrice, pnl=ev-buy, pct=buy>0?(pnl/buy)*100:0;
     const buyKRW=buy*RATE, evalKRW=ev*RATE;
     tBuyKRW+=buyKRW; tEvalKRW+=evalKRW;
     return {...s,buy,ev,pnl,pct,buyKRW,evalKRW};
   });
-  const tPnlKRW=tEvalKRW-tBuyKRW, tPctKRW=(tPnlKRW/tBuyKRW)*100;
+  const tPnlKRW=tEvalKRW-tBuyKRW, tPctKRW=tBuyKRW>0?(tPnlKRW/tBuyKRW)*100:0;
 
   const sPnl=document.getElementById('sPnlKRW'), sPct=document.getElementById('sPctKRW');
   sPnl.textContent=fi(tPnlKRW);
@@ -944,23 +969,19 @@ function renderAccount(){
   document.getElementById('sBuyKRW').textContent=fi(tBuyKRW);
   document.getElementById('sEvalKRW').textContent=fi(tEvalKRW);
 
-  // Update order page price
-  document.getElementById('orderPrice').textContent='$'+stocks[0].currentPrice.toFixed(2);
-  const chgCls=stocks[0].dayChange>=0?'c-red':'c-blue';
-  const chgSign=stocks[0].dayChange>=0?'+':'';
-  document.getElementById('orderChange').textContent=`${chgSign}$${stocks[0].dayChange.toFixed(2)} (${chgSign}${stocks[0].dayPct.toFixed(2)}%)`;
-  document.getElementById('orderChange').className='order-stock-change '+chgCls;
-  document.getElementById('orderPrice').className='order-stock-price '+chgCls;
-
-  // Update chart page price
-  document.getElementById('chartPrice').textContent='$'+stocks[0].currentPrice.toFixed(2);
-  document.getElementById('chartPrice').className='chart-price-big '+chgCls;
-  document.getElementById('chartChange').textContent=`${chgSign}$${stocks[0].dayChange.toFixed(2)} (${chgSign}${stocks[0].dayPct.toFixed(2)}%)`;
-  document.getElementById('chartChange').className=chgCls;
-
-  orderPrice=stocks[0].currentPrice;
-  document.getElementById('orderPriceInput').value=orderPrice.toFixed(2);
-  updateOrderTotal();
+  // Update order page price (첫 번째 종목 기준)
+  if(activeStocks.length>0){
+    const first = activeStocks[0];
+    document.getElementById('orderPrice').textContent='$'+first.currentPrice.toFixed(2);
+    const chgCls=first.dayChange>=0?'c-red':'c-blue';
+    const chgSign=first.dayChange>=0?'+':'';
+    document.getElementById('orderChange').textContent=`${chgSign}$${first.dayChange.toFixed(2)} (${chgSign}${first.dayPct.toFixed(2)}%)`;
+    document.getElementById('orderChange').className='order-stock-change '+chgCls;
+    document.getElementById('orderPrice').className='order-stock-price '+chgCls;
+    orderPrice=first.currentPrice;
+    document.getElementById('orderPriceInput').value=orderPrice.toFixed(2);
+    updateOrderTotal();
+  }
 
   const cols=[['평가손익','수익률'],['보유수량','가능수량'],['매입금액','평가금액'],['매입가','현재가'],['손익분기매입가','등락률'],['전일','금일'],['수수료','세금'],['통화','환율']];
   const thead=document.querySelector('#stockTable thead');
@@ -970,15 +991,43 @@ function renderAccount(){
   h1+='</tr>'; h2+='</tr>'; thead.innerHTML=h1+h2;
 
   const tbody=document.querySelector('#stockTable tbody'); tbody.innerHTML='';
+  if(data.length===0){
+    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px 0;color:var(--sub);font-size:14px">설정 탭에서 종목을 추가해주세요</td></tr>';
+    return;
+  }
   data.forEach(s=>{
     const pnlCls=s.pnl>=0?'c-red':'c-blue', pnlSign=s.pnl>=0?'+':'';
-    const dayCls=s.dayChange>=0?'c-red':'c-blue', daySign=s.dayChange>=0?'+':'-', dayPctSign=s.dayPct>=0?'+':'-';
+    const dayCls=s.dayChange>=0?'c-red':'c-blue', dayPctSign=s.dayPct>=0?'+':'-';
     const r1=document.createElement('tr'); r1.className='row-top';
     r1.innerHTML=`<td class="sticky"><div class="stock-name-cell">${s.name}</div></td><td class="col-data ${pnlCls}">${pnlSign}${fc(s.pnl)}</td><td class="col-data">${s.qty}</td><td class="col-data">${fc(s.buy)}</td><td class="col-data">${fc(s.avgPrice)}</td><td class="col-wide">${fc(s.breakEven)}</td><td class="col-data">0</td><td class="col-data">${s.fee.toFixed(2)}</td><td class="col-data">USD</td>`;
     const r2=document.createElement('tr'); r2.className='row-bot';
     r2.innerHTML=`<td class="sticky"><div class="stock-ticker-cell">${s.ticker}</div></td><td class="col-data ${pnlCls}">${pnlSign}${s.pct.toFixed(2)}%</td><td class="col-data">${s.qty}</td><td class="col-data">${fc(s.ev)}</td><td class="col-data ${dayCls}">${fc(s.currentPrice)}</td><td class="col-wide ${dayCls}">${dayPctSign}${Math.abs(s.dayPct).toFixed(2)}%</td><td class="col-data">0</td><td class="col-data">${s.tax.toFixed(2)}</td><td class="col-data">${RATE.toFixed(2)}</td>`;
     tbody.appendChild(r1); tbody.appendChild(r2);
   });
+}
+
+// ====== ACCOUNT DROPDOWN & SWITCHING ======
+let currentAccount = 'main'; // 'main' or 'custom'
+
+function toggleAccountDropdown(){
+  const dd = document.getElementById('accountDropdown');
+  dd.classList.toggle('show');
+  // 바깥 클릭 시 닫기
+  if(dd.classList.contains('show')){
+    setTimeout(()=>document.addEventListener('click', closeDropdown, {once:true}), 0);
+  }
+}
+function closeDropdown(){ document.getElementById('accountDropdown').classList.remove('show'); }
+
+function selectAccount(type){
+  currentAccount = type;
+  document.getElementById('accountDropdown').classList.remove('show');
+  if(type==='main'){
+    document.getElementById('accountNum').textContent = '5649-6275 [위탁종합] 정성훈';
+  } else {
+    document.getElementById('accountNum').textContent = '8901-7479 [위탁종합] 정성훈';
+  }
+  renderAccount();
 }
 
 // ====== CHAT BANNER ROTATION ======
