@@ -726,7 +726,9 @@ function setChartPeriod(period){
   fetchChartData(period);
 }
 
-// ====== YAHOO FINANCE API (allorigins CORS proxy) ======
+// ====== YAHOO FINANCE API (auto-detect: Vercel API or allorigins proxy) ======
+const IS_VERCEL = location.hostname.includes('vercel.app');
+
 async function fetchYahoo(symbol, range='1d', interval='1d'){
   const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}`;
   const url = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
@@ -736,24 +738,54 @@ async function fetchYahoo(symbol, range='1d', interval='1d'){
   return JSON.parse(wrapper.contents);
 }
 
+// Vercel 전용: /api/prices 엔드포인트로 빠르게 가져오기
+async function fetchVercelPrices(){
+  const res = await fetch('/api/prices');
+  if(!res.ok) throw new Error('API error');
+  const json = await res.json();
+  if(!json.ok) throw new Error(json.error);
+  return json.data;
+}
+
 async function fetchPrices(){
   try {
-    const symbols = ['NVDA','TSLA','USDKRW=X','AAPL','MSFT','AMZN','GOOGL','META','AMD','PLTR','COIN','SMCI','SOFI','IONQ','RGTI','RBLX','CRWD'];
-    const results = await Promise.allSettled(symbols.map(s=>fetchYahoo(s)));
-
+    const allSymbols = ['NVDA','TSLA','USDKRW=X','AAPL','MSFT','AMZN','GOOGL','META','AMD','PLTR','COIN','SMCI','SOFI','IONQ','RGTI','RBLX','CRWD'];
     const priceMap = {};
-    results.forEach((r,i)=>{
-      if(r.status==='fulfilled' && r.value.chart && r.value.chart.result){
-        const meta = r.value.chart.result[0].meta;
-        const sym = symbols[i].replace('=X','');
-        priceMap[sym] = {
-          price: meta.regularMarketPrice,
-          prevClose: meta.chartPreviousClose || meta.previousClose,
-          change: meta.regularMarketPrice - (meta.chartPreviousClose || meta.previousClose),
-          pct: ((meta.regularMarketPrice - (meta.chartPreviousClose || meta.previousClose)) / (meta.chartPreviousClose || meta.previousClose)) * 100
-        };
-      }
-    });
+
+    if(IS_VERCEL){
+      // Vercel: 포트폴리오 종목은 /api/prices로 빠르게, 나머지는 프록시
+      const [vercelData, ...proxyResults] = await Promise.all([
+        fetchVercelPrices(),
+        ...allSymbols.filter(s=>!['NVDA','TSLA','USDKRW=X'].includes(s)).map(s=>fetchYahoo(s).catch(()=>null))
+      ]);
+
+      // Vercel API 결과 매핑
+      Object.entries(vercelData).forEach(([sym, d])=>{
+        priceMap[sym] = { price:d.price, prevClose:d.previousClose, change:d.change, pct:d.changePct };
+      });
+
+      // 나머지 프록시 결과 매핑
+      const extraSymbols = allSymbols.filter(s=>!['NVDA','TSLA','USDKRW=X'].includes(s));
+      proxyResults.forEach((r,i)=>{
+        if(r && r.chart && r.chart.result){
+          const meta = r.chart.result[0].meta;
+          const sym = extraSymbols[i];
+          const prev = meta.chartPreviousClose || meta.previousClose;
+          priceMap[sym] = { price:meta.regularMarketPrice, prevClose:prev, change:meta.regularMarketPrice-prev, pct:((meta.regularMarketPrice-prev)/prev)*100 };
+        }
+      });
+    } else {
+      // GitHub Pages: 전부 프록시
+      const results = await Promise.allSettled(allSymbols.map(s=>fetchYahoo(s)));
+      results.forEach((r,i)=>{
+        if(r.status==='fulfilled' && r.value.chart && r.value.chart.result){
+          const meta = r.value.chart.result[0].meta;
+          const sym = allSymbols[i].replace('=X','');
+          const prev = meta.chartPreviousClose || meta.previousClose;
+          priceMap[sym] = { price:meta.regularMarketPrice, prevClose:prev, change:meta.regularMarketPrice-prev, pct:((meta.regularMarketPrice-prev)/prev)*100 };
+        }
+      });
+    }
 
     // Update portfolio stocks
     stocks.forEach(s=>{
