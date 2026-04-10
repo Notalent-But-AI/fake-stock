@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>영웅문S#</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#fff;--bg2:#f5f6f8;--border:#e0e2e7;--text:#1a1a1a;--sub:#71757e;
+  --red:#d92525;--blue:#2460e0;--orange:#f37021;
+}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:'Noto Sans KR',-apple-system,sans-serif;
+  background:var(--bg);color:var(--text);
+  max-width:430px;margin:0 auto;
+  display:flex;flex-direction:column;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ===== STATUS BAR ===== */
+.statusbar{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:12px 20px 4px;
+  background:#fff;
+  flex-shrink:0;
+}
+.statusbar .time{font-size:15px;font-weight:700}
+.sb-right{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600}
+
+/* ===== TOP NAV ===== */
+.topnav{
+  display:flex;align-items:center;
+  padding:10px 12px;gap:4px;
+  flex-shrink:0;
+}
+.topnav-back{width:36px;height:36px;display:flex;align-items:center;justify-content:center}
+.topnav-back svg{width:22px;height:22px;stroke:#333;fill:none;stroke-width:2.2}
+.topnav-items{display:flex;gap:16px;flex:1;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.topnav-items::-webkit-scrollbar{display:none}
+.topnav-item{font-size:16px;color:#999;white-space:nowrap;font-weight:500;padding:4px 0}
+.topnav-item.active{color:var(--text);font-weight:800;font-size:17px}
+.topnav-more{width:36px;height:36px;display:flex;align-items:center;justify-content:center}
+.topnav-more svg{width:20px;height:20px;fill:#555}
+
+/* ===== SUB TABS ===== */
+.subtabs{display:flex;border-bottom:2px solid var(--border);flex-shrink:0;padding:0 4px}
+.subtab{
+  flex:1;text-align:center;padding:12px 0;
+  font-size:15px;color:#999;font-weight:500;
+  position:relative;
+}
+.subtab.active{color:var(--text);font-weight:700}
+.subtab.active::after{
+  content:'';position:absolute;bottom:-2px;left:16px;right:16px;
+  height:3px;background:var(--blue);border-radius:2px;
+}
+
+/* ===== ACCOUNT ROW ===== */
+.account-row{
+  display:flex;align-items:center;gap:8px;
+  padding:12px 16px;flex-shrink:0;
+}
+.account-select{
+  display:flex;align-items:center;gap:6px;
+  padding:8px 12px;border:1px solid var(--border);border-radius:6px;
+  font-size:13px;font-weight:600;flex:1;
+}
+.account-select svg{width:12px;height:12px;stroke:#888;fill:none;stroke-width:2.5;flex-shrink:0;margin-left:auto}
+.refresh-btn{
+  width:40px;height:40px;border:1px solid var(--border);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;background:#fff;
+}
+.refresh-btn svg{width:20px;height:20px;stroke:#76b900;fill:none;stroke-width:2}
+.acc-btn{
+  padding:8px 10px;border:1px solid var(--border);border-radius:6px;
+  font-size:12px;color:var(--text);font-weight:500;white-space:nowrap;background:#fff;
+}
+
+/* ===== FILTER ROW ===== */
+.filter-row{
+  display:flex;gap:6px;padding:4px 16px 8px;overflow-x:auto;
+  -webkit-overflow-scrolling:touch;flex-shrink:0;
+}
+.filter-row::-webkit-scrollbar{display:none}
+.fbtn{
+  padding:6px 12px;border:1px solid var(--border);border-radius:6px;
+  font-size:12px;color:var(--sub);white-space:nowrap;background:#fff;
+  display:flex;align-items:center;gap:4px;
+}
+.fbtn svg{width:10px;height:10px;stroke:#888;fill:none;stroke-width:2}
+.fbtn-dot{width:4px;height:16px;display:flex;flex-direction:column;gap:2px;margin-left:2px}
+.fbtn-dot span{width:3px;height:3px;border-radius:50%;background:#888}
+
+/* ===== SUMMARY BOX ===== */
+.summary-box{
+  margin:4px 16px 8px;border:1px solid var(--border);border-radius:8px;
+  flex-shrink:0;overflow:hidden;
+}
+.summary-main{padding:14px 16px 12px}
+.summary-top{display:flex;align-items:center;gap:12px}
+.summary-label{font-size:14px;font-weight:700;color:var(--text);white-space:nowrap}
+.summary-value{font-size:22px;font-weight:800;flex:1;text-align:right}
+.summary-pct{font-size:15px;font-weight:700;margin-left:8px}
+.summary-collapse{width:24px;height:24px;display:flex;align-items:center;justify-content:center;margin-left:4px}
+.summary-collapse svg{width:14px;height:14px;stroke:#888;fill:none;stroke-width:2.5}
+.summary-grid{
+  display:grid;grid-template-columns:1fr 1fr;
+  margin-top:12px;border-top:1px solid var(--border);padding-top:10px;
+  gap:8px 0;
+}
+.sg-item{display:flex;justify-content:space-between;padding:2px 0}
+.sg-item .l{font-size:12px;color:var(--sub)}
+.sg-item .v{font-size:14px;font-weight:700;text-align:right}
+.sg-item:nth-child(odd){padding-right:16px;border-right:1px solid var(--border)}
+.sg-item:nth-child(even){padding-left:16px}
+.summary-ranking{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 16px;border-top:1px solid var(--border);
+  font-size:12px;color:var(--sub);
+}
+.ranking-label{
+  background:#f0f0f0;padding:2px 6px;border-radius:4px;
+  font-size:11px;font-weight:600;color:#666;
+}
+.ranking-text{flex:1;font-size:13px;color:var(--text);font-weight:500}
+.ranking-refresh svg{width:16px;height:16px;stroke:#aaa;fill:none;stroke-width:2}
+
+/* ===== TABLE ===== */
+.table-wrap{
+  flex:1;overflow:hidden;display:flex;flex-direction:column;
+  border-top:1px solid var(--border);
+}
+.table-scroll{
+  flex:1;overflow-x:auto;overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  position:relative;
+}
+.table-scroll::-webkit-scrollbar{display:none}
+table{
+  border-collapse:collapse;width:max-content;min-width:100%;
+  table-layout:fixed;
+}
+th,td{
+  padding:0;border-bottom:1px solid var(--border);
+  vertical-align:middle;
+}
+/* Header */
+thead th{
+  background:var(--bg2);font-size:11px;color:var(--sub);font-weight:500;
+  text-align:center;padding:6px 8px;white-space:nowrap;
+  position:sticky;top:0;z-index:1;
+}
+thead th.sticky{
+  position:sticky;left:0;z-index:3;
+  text-align:left;padding-left:12px;
+  background:var(--bg2);
+  border-right:1px solid var(--border);
+  min-width:100px;width:100px;
+}
+.th-top{border-bottom:none;padding-bottom:2px}
+.th-bot{padding-top:0;border-top:none}
+.gear-icon{display:inline-block;margin-right:4px;vertical-align:middle}
+.gear-icon svg{width:14px;height:14px;stroke:#aaa;fill:none;stroke-width:1.8}
+.scroll-arrow{
+  color:#d946a8;font-size:10px;font-weight:700;
+  position:absolute;top:50%;transform:translateY(-50%);
+}
+.scroll-arrow.right{right:2px}
+.scroll-arrow.left{left:2px}
+
+/* Data cells */
+td{font-size:14px;text-align:right;padding:0 10px;height:28px;white-space:nowrap}
+td.sticky{
+  position:sticky;left:0;z-index:2;
+  text-align:left;padding-left:12px;
+  background:#fff;
+  border-right:1px solid var(--border);
+  min-width:100px;width:100px;
+}
+.stock-name-cell{font-size:14px;font-weight:700}
+.stock-ticker-cell{font-size:12px;color:var(--sub);font-weight:400}
+.row-top td{border-bottom:none;padding-top:10px;padding-bottom:1px}
+.row-bot td{padding-top:1px;padding-bottom:10px}
+.c-red{color:var(--red)}
+.c-blue{color:var(--blue)}
+.col-data{min-width:110px;width:110px}
+.col-wide{min-width:130px;width:130px}
+
+/* ===== CHAT BANNER ===== */
+.chat-banner{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 12px;
+  background:#fff;border-top:1px solid var(--border);
+  flex-shrink:0;
+}
+.chat-icon{
+  display:flex;align-items:center;gap:4px;
+  background:#ff3b30;color:#fff;font-size:10px;font-weight:700;
+  padding:4px 8px;border-radius:12px;
+}
+.chat-icon .bubble{
+  width:18px;height:18px;background:#4cd964;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;margin-left:2px;
+}
+.chat-icon .bubble svg{width:12px;height:12px;fill:#fff}
+.chat-text{font-size:13px;color:var(--text);flex:1}
+
+/* ===== BOTTOM NAV ===== */
+.bottomnav{
+  display:flex;align-items:stretch;
+  background:#fff;border-top:1px solid var(--border);
+  padding:0 0 20px;flex-shrink:0;
+}
+.bnav-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:8px 0 2px;
+  font-size:10px;color:#999;font-weight:500;gap:2px;
+}
+.bnav-item.active{color:var(--text);font-weight:800}
+.bnav-item svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8}
+.bnav-menu{
+  background:#2c2c2c;color:#fff;border-radius:8px;
+  margin:4px;padding:6px 0 2px;
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;font-size:10px;font-weight:700;gap:2px;
+  min-width:52px;
+}
+.bnav-menu svg{width:20px;height:20px;stroke:#fff;fill:none;stroke-width:2}
+</style>
+</head>
+<body>
+
+<!-- STATUS BAR -->
+<div class="statusbar">
+  <div class="time" id="clock">12:55</div>
+  <div class="sb-right">
+    <svg width="16" height="12" viewBox="0 0 20 14" fill="#1a1a1a"><rect x="0" y="8" width="3" height="6" rx="0.5"/><rect x="4.5" y="5" width="3" height="9" rx="0.5"/><rect x="9" y="3" width="3" height="11" rx="0.5"/><rect x="13.5" y="0" width="3" height="14" rx="0.5"/></svg>
+    <span style="font-size:12px">5G</span>
+    <svg width="24" height="13" viewBox="0 0 27 13" fill="none">
+      <rect x="0" y="1" width="22" height="11" rx="2.5" stroke="#1a1a1a" stroke-width="1.2"/>
+      <rect x="23" y="3.5" width="2" height="6" rx="0.8" fill="#1a1a1a" opacity="0.4"/>
+      <rect x="2" y="3" width="15" height="7" rx="1" fill="#34c759"/>
+    </svg>
+    <span style="font-size:11px;background:#333;color:#fff;border-radius:4px;padding:1px 4px">78</span>
+  </div>
+</div>
+
+<!-- TOP NAV -->
+<div class="topnav">
+  <div class="topnav-back"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+  <div class="topnav-items">
+    <div class="topnav-item">내계좌</div>
+    <div class="topnav-item active">해외잔고</div>
+    <div class="topnav-item">미체결</div>
+    <div class="topnav-item">주문체결</div>
+    <div class="topnav-item">실현손익</div>
+  </div>
+  <div class="topnav-more"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" fill="#555"/><circle cx="12" cy="12" r="1.5" fill="#555"/><circle cx="12" cy="19" r="1.5" fill="#555"/></svg></div>
+</div>
+
+<!-- SUB TABS -->
+<div class="subtabs">
+  <div class="subtab active">일반 잔고</div>
+  <div class="subtab">소수점 잔고</div>
+  <div class="subtab">타사 잔고</div>
+</div>
+
+<!-- ACCOUNT ROW -->
+<div class="account-row">
+  <div class="account-select">
+    <span id="accountNum">5649-6275 [위탁종합] 정성훈</span>
+    <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+  </div>
+  <div class="refresh-btn">
+    <svg viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+  </div>
+  <div class="acc-btn">모으기<br>잔고</div>
+  <div class="acc-btn">국내<br>잔고</div>
+</div>
+
+<!-- FILTER ROW -->
+<div class="filter-row">
+  <div class="fbtn">유의</div>
+  <div class="fbtn">전체 거래소 <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+  <div class="fbtn">외화 <div class="fbtn-dot"><span></span><span></span><span></span></div></div>
+  <div class="fbtn">수수료</div>
+  <div class="fbtn">예수금</div>
+</div>
+
+<!-- SUMMARY BOX -->
+<div class="summary-box">
+  <div class="summary-main">
+    <div class="summary-top">
+      <span class="summary-label">총 평가손익(원)</span>
+      <span class="summary-value c-blue" id="sPnlKRW">-0</span>
+      <span class="summary-pct c-blue" id="sPctKRW">-0%</span>
+      <div class="summary-collapse"><svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg></div>
+    </div>
+    <div class="summary-grid">
+      <div class="sg-item"><span class="l">매입금액</span><span class="v" id="sBuyKRW">0</span></div>
+      <div class="sg-item"><span class="l">평가금액</span><span class="v" id="sEvalKRW">0</span></div>
+      <div class="sg-item"><span class="l">실현손익</span><span class="v">0</span></div>
+      <div class="sg-item"><span class="l"></span><span class="v"></span></div>
+      <div class="sg-item"><span class="l">원화예수금 ↻</span><span class="v"></span></div>
+      <div class="sg-item"><span class="l">원화추정자산</span><span class="v"></span></div>
+    </div>
+  </div>
+  <div class="summary-ranking">
+    <span class="ranking-label">MY랭킹</span>
+    <span class="ranking-text">월 수익률 순위 조회 (키움전체)</span>
+    <div class="ranking-refresh"><svg viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg></div>
+  </div>
+</div>
+
+<!-- TABLE -->
+<div class="table-wrap">
+  <div class="table-scroll" id="tableScroll">
+    <table id="stockTable">
+      <thead></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- CHAT BANNER -->
+<div class="chat-banner">
+  <div class="chat-icon">
+    채팅
+    <div class="bubble"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+  </div>
+  <div class="chat-text">실시간 대화중 ! 의견 또는 질문 모두 환영해요</div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottomnav">
+  <div class="bnav-menu">
+    <svg viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    메뉴
+  </div>
+  <div class="bnav-item"><svg viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.518 4.674h4.911c.969 0 1.372 1.24.588 1.81l-3.973 2.884 1.518 4.674c.3.921-.755 1.688-1.539 1.118L12 15.204l-3.973 2.884c-.784.57-1.838-.197-1.539-1.118l1.518-4.674-3.973-2.884c-.784-.57-.381-1.81.588-1.81h4.911l1.518-4.674z"/></svg>관심종목</div>
+  <div class="bnav-item"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>현재가</div>
+  <div class="bnav-item"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>주문</div>
+  <div class="bnav-item"><svg viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>차트</div>
+  <div class="bnav-item active"><svg viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 000 4h4v-4z"/></svg>계좌</div>
+  <div class="bnav-item"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>커뮤니티</div>
+</div>
+
+<script>
+// ====== CONFIG - 여기서 수정하세요 ======
+let RATE = 1474.20;
+const stocks = [
+  {
+    name:'엔비디아', ticker:'NVDA',
+    qty:51, avgPrice:173.38, currentPrice:183.51,
+    breakEven:174.15, dayChange:1.45, dayPct:0.79,
+    fee:22.11, tax:0.00
+  },
+  {
+    name:'테슬라', ticker:'TSLA',
+    qty:103, avgPrice:445.10, currentPrice:346.94,
+    breakEven:447.09, dayChange:3.71, dayPct:1.08,
+    fee:114.61, tax:0.00
+  }
+];
+// ======================================
+
+const fc = (n,d=4) => {
+  const abs = Math.abs(n);
+  const parts = abs.toFixed(d).split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  return (n<0?'-':'') + parts.join('.');
+};
+const fi = n => {
+  const abs = Math.abs(Math.round(n));
+  return (n<0?'-':'') + abs.toLocaleString('ko-KR');
+};
+
+function updateClock(){
+  const now=new Date();
+  document.getElementById('clock').textContent=
+    now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+}
+updateClock(); setInterval(updateClock,30000);
+
+// ====== 실시간 시세 업데이트 ======
+let lastUpdate = 0;
+let fetchFailed = false;
+
+async function fetchPrices(){
+  try {
+    const res = await fetch('/api/prices');
+    if(!res.ok) throw new Error('API error');
+    const json = await res.json();
+    if(!json.ok) throw new Error(json.error);
+
+    const d = json.data;
+
+    stocks.forEach(s => {
+      const tick = d[s.ticker];
+      if(tick){
+        s.currentPrice = tick.price;
+        s.dayChange = tick.change;
+        s.dayPct = tick.changePct;
+      }
+    });
+
+    if(d.USDKRW){
+      RATE = d.USDKRW.price;
+    }
+
+    lastUpdate = Date.now();
+    fetchFailed = false;
+    render();
+  } catch(e) {
+    console.warn('시세 조회 실패:', e.message);
+    fetchFailed = true;
+    if(lastUpdate === 0) render();
+  }
+}
+
+// 10초마다 시세 갱신
+fetchPrices();
+setInterval(fetchPrices, 10000);
+
+function render(){
+  let tBuyKRW=0, tEvalKRW=0;
+
+  const data = stocks.map(s=>{
+    const buy = s.qty * s.avgPrice;
+    const ev = s.qty * s.currentPrice;
+    const pnl = ev - buy;
+    const pct = (pnl/buy)*100;
+    const buyKRW = buy * RATE;
+    const evalKRW = ev * RATE;
+    tBuyKRW += buyKRW;
+    tEvalKRW += evalKRW;
+    return {...s, buy, ev, pnl, pct, buyKRW, evalKRW};
+  });
+
+  const tPnlKRW = tEvalKRW - tBuyKRW;
+  const tPctKRW = (tPnlKRW/tBuyKRW)*100;
+
+  const sPnl = document.getElementById('sPnlKRW');
+  const sPct = document.getElementById('sPctKRW');
+  sPnl.textContent = fi(tPnlKRW);
+  sPct.textContent = (tPnlKRW<0?'':'+') + tPctKRW.toFixed(2) + '%';
+  sPnl.className = 'summary-value ' + (tPnlKRW>=0?'c-red':'c-blue');
+  sPct.className = 'summary-pct ' + (tPnlKRW>=0?'c-red':'c-blue');
+
+  document.getElementById('sBuyKRW').textContent = fi(tBuyKRW);
+  document.getElementById('sEvalKRW').textContent = fi(tEvalKRW);
+
+  // Table headers
+  const cols = [
+    ['평가손익','수익률'],
+    ['보유수량','가능수량'],
+    ['매입금액','평가금액'],
+    ['매입가','현재가'],
+    ['손익분기매입가','등락률'],
+    ['전일','금일'],
+    ['수수료','세금'],
+    ['통화','환율']
+  ];
+
+  const thead = document.querySelector('#stockTable thead');
+  let h1='<tr><th class="sticky th-top"><span class="gear-icon"><svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span>종목명</th>';
+  let h2='<tr><th class="sticky th-bot"></th>';
+  cols.forEach(c=>{
+    const cls = c[0]==='손익분기매입가'?'col-wide':'col-data';
+    h1+=`<th class="th-top ${cls}">${c[0]}</th>`;
+    h2+=`<th class="th-bot ${cls}">${c[1]}</th>`;
+  });
+  h1+='</tr>'; h2+='</tr>';
+  thead.innerHTML=h1+h2;
+
+  // Table body
+  const tbody = document.querySelector('#stockTable tbody');
+  tbody.innerHTML='';
+  data.forEach(s=>{
+    const pnlCls = s.pnl>=0?'c-red':'c-blue';
+    const pnlSign = s.pnl>=0?'+':'';
+    const dayCls = s.dayChange>=0?'c-red':'c-blue';
+    const daySign = s.dayChange>=0?'+':'-';
+    const dayPctSign = s.dayPct>=0?'+':'-';
+
+    const r1 = document.createElement('tr');
+    r1.className='row-top';
+    r1.innerHTML=`
+      <td class="sticky"><div class="stock-name-cell">${s.name}</div></td>
+      <td class="col-data ${pnlCls}">${pnlSign}${fc(s.pnl)}</td>
+      <td class="col-data">${s.qty}</td>
+      <td class="col-data">${fc(s.buy)}</td>
+      <td class="col-data">${fc(s.avgPrice)}</td>
+      <td class="col-wide">${fc(s.breakEven)}</td>
+      <td class="col-data">0</td>
+      <td class="col-data">${s.fee.toFixed(2)}</td>
+      <td class="col-data">USD</td>
+    `;
+    const r2 = document.createElement('tr');
+    r2.className='row-bot';
+    r2.innerHTML=`
+      <td class="sticky"><div class="stock-ticker-cell">${s.ticker}</div></td>
+      <td class="col-data ${pnlCls}">${pnlSign}${s.pct.toFixed(2)}%</td>
+      <td class="col-data">${s.qty}</td>
+      <td class="col-data">${fc(s.ev)}</td>
+      <td class="col-data ${dayCls}">${fc(s.currentPrice)}</td>
+      <td class="col-wide ${dayCls}">${dayPctSign}${Math.abs(s.dayPct).toFixed(2)}%</td>
+      <td class="col-data">0</td>
+      <td class="col-data">${s.tax.toFixed(2)}</td>
+      <td class="col-data">${RATE.toFixed(2)}</td>
+    `;
+    tbody.appendChild(r1);
+    tbody.appendChild(r2);
+  });
+}
+
+render();
+</script>
+</body>
+</html>
