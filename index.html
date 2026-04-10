@@ -128,7 +128,8 @@ body{
 .acc-btn{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);font-weight:500;white-space:nowrap;background:#fff}
 .filter-row{display:flex;gap:6px;padding:4px 16px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-shrink:0}
 .filter-row::-webkit-scrollbar{display:none}
-.fbtn{padding:6px 12px;border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--sub);white-space:nowrap;background:#fff;display:flex;align-items:center;gap:4px}
+.fbtn{padding:6px 12px;border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--sub);white-space:nowrap;background:#fff;display:flex;align-items:center;gap:4px;cursor:pointer}
+.currency-toggle.active{background:var(--text);color:#fff;border-color:var(--text)}
 .fbtn svg{width:10px;height:10px;stroke:#888;fill:none;stroke-width:2}
 .fbtn-dot{width:4px;height:16px;display:flex;flex-direction:column;gap:2px;margin-left:2px}
 .fbtn-dot span{width:3px;height:3px;border-radius:50%;background:#888}
@@ -383,9 +384,9 @@ td.sticky{position:sticky;left:0;z-index:2;text-align:left;padding-left:12px;bac
     <div class="acc-btn">국내<br>잔고</div>
   </div>
   <div class="filter-row">
-    <div class="fbtn">유의</div>
-    <div class="fbtn">전체 거래소 <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
-    <div class="fbtn">외화 <div class="fbtn-dot"><span></span><span></span><span></span></div></div>
+    <div class="fbtn currency-toggle active" id="btnKRW" onclick="setCurrency('KRW')">원화(KRW)</div>
+    <div class="fbtn currency-toggle" id="btnUSD" onclick="setCurrency('USD')">외화(USD)</div>
+    <div class="fbtn">전체 거래소</div>
     <div class="fbtn">수수료</div>
     <div class="fbtn">예수금</div>
   </div>
@@ -959,18 +960,32 @@ function renderAccount(){
     tBuyKRW+=buyKRW; tEvalKRW+=evalKRW;
     return {...s,buy,ev,pnl,pct,buyKRW,evalKRW};
   });
-  const tPnlKRW=tEvalKRW-tBuyKRW, tPctKRW=tBuyKRW>0?(tPnlKRW/tBuyKRW)*100:0;
+  const tPnl=tEvalKRW-tBuyKRW, tPct=tBuyKRW>0?(tPnl/tBuyKRW)*100:0;
+  const isKRW = displayCurrency==='KRW';
+  const R = isKRW ? RATE : 1;
+  const sym = isKRW ? '' : '$';
+  const unit = isKRW ? '원' : '';
+  const fmtAmt = n => isKRW ? fi(n) : fc(n/RATE, 2);
 
+  // Summary
+  const tPnlDisp = isKRW ? tPnl : tPnl/RATE;
+  const tBuyDisp = isKRW ? tBuyKRW : tBuyKRW/RATE;
+  const tEvalDisp = isKRW ? tEvalKRW : tEvalKRW/RATE;
+  const labelUnit = isKRW ? '(원)' : '(USD)';
+
+  document.querySelector('.summary-label').textContent = '총 평가손익'+labelUnit;
   const sPnl=document.getElementById('sPnlKRW'), sPct=document.getElementById('sPctKRW');
-  sPnl.textContent=fi(tPnlKRW);
-  sPct.textContent=(tPnlKRW<0?'':'+')+tPctKRW.toFixed(2)+'%';
-  sPnl.className='summary-value '+(tPnlKRW>=0?'c-red':'c-blue');
-  sPct.className='summary-pct '+(tPnlKRW>=0?'c-red':'c-blue');
-  document.getElementById('sBuyKRW').textContent=fi(tBuyKRW);
-  document.getElementById('sEvalKRW').textContent=fi(tEvalKRW);
-  const deposit = currentAccount==='main' ? 84730 : 78654150;
-  document.getElementById('sDepositKRW').textContent=fi(deposit);
-  document.getElementById('sEstimateKRW').textContent=fi(tEvalKRW + deposit);
+  sPnl.textContent=isKRW ? fi(tPnlDisp) : (tPnlDisp>=0?'+':'')+fc(tPnlDisp,2);
+  sPct.textContent=(tPnl<0?'':'+')+tPct.toFixed(2)+'%';
+  sPnl.className='summary-value '+(tPnl>=0?'c-red':'c-blue');
+  sPct.className='summary-pct '+(tPnl>=0?'c-red':'c-blue');
+  document.getElementById('sBuyKRW').textContent=isKRW ? fi(tBuyDisp) : '$'+fc(tBuyDisp,2);
+  document.getElementById('sEvalKRW').textContent=isKRW ? fi(tEvalDisp) : '$'+fc(tEvalDisp,2);
+  const depositKRW = currentAccount==='main' ? 84730 : 78654150;
+  const depositDisp = isKRW ? depositKRW : depositKRW/RATE;
+  const estimateDisp = isKRW ? tEvalKRW+depositKRW : (tEvalKRW+depositKRW)/RATE;
+  document.getElementById('sDepositKRW').textContent=isKRW ? fi(depositDisp) : '$'+fc(depositDisp,2);
+  document.getElementById('sEstimateKRW').textContent=isKRW ? fi(estimateDisp) : '$'+fc(estimateDisp,2);
   document.getElementById('sRealizedKRW').textContent='0';
 
   // Update order page price (첫 번째 종목 기준)
@@ -987,7 +1002,7 @@ function renderAccount(){
     updateOrderTotal();
   }
 
-  const cols=[['평가손익','수익률'],['보유수량','가능수량'],['매입금액','평가금액'],['매입가','현재가'],['손익분기매입가','등락률'],['전일','금일'],['수수료','세금'],['통화','환율']];
+  const cols=[['평가손익','수익률'],['보유수량','가능수량'],['매입금액','평가금액'],['매입가','현재가'],['손익분기매입가','등락률'],['수수료','세금'],['통화','환율']];
   const thead=document.querySelector('#stockTable thead');
   let h1='<tr><th class="sticky th-top"><span class="gear-icon"><svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span>종목명</th>';
   let h2='<tr><th class="sticky th-bot"></th>';
@@ -1000,15 +1015,33 @@ function renderAccount(){
     return;
   }
   data.forEach(s=>{
-    const pnlKRW = s.pnl * RATE;
-    const pnlCls=pnlKRW>=0?'c-red':'c-blue', pnlSign=pnlKRW>=0?'+':'';
+    // 수수료 자동계산: 매입금액 × 0.25% (키움 해외주식)
+    const feeUSD = s.buy * FEE_RATE;
+    const taxUSD = 0; // 미실현손익이므로 세금 없음
+    const pnlVal = isKRW ? s.pnl*RATE : s.pnl;
+    const pnlCls=s.pnl>=0?'c-red':'c-blue', pnlSign=s.pnl>=0?'+':'';
     const dayCls=s.dayChange>=0?'c-red':'c-blue', dayPctSign=s.dayPct>=0?'+':'-';
+    const buyDisp = isKRW ? fi(s.buyKRW) : '$'+fc(s.buy,2);
+    const evalDisp = isKRW ? fi(s.evalKRW) : '$'+fc(s.ev,2);
+    const pnlDisp = isKRW ? pnlSign+fi(pnlVal) : pnlSign+'$'+fc(Math.abs(s.pnl),2);
+    const feeDisp = isKRW ? fi(feeUSD*RATE) : fc(feeUSD,2);
     const r1=document.createElement('tr'); r1.className='row-top';
-    r1.innerHTML=`<td class="sticky"><div class="stock-name-cell">${s.name}</div></td><td class="col-data ${pnlCls}">${pnlSign}${fi(pnlKRW)}</td><td class="col-data">${s.qty}</td><td class="col-data">${fi(s.buyKRW)}</td><td class="col-data">${fc(s.avgPrice)}</td><td class="col-wide">${fc(s.breakEven)}</td><td class="col-data">0</td><td class="col-data">${s.fee.toFixed(2)}</td><td class="col-data">USD</td>`;
+    r1.innerHTML=`<td class="sticky"><div class="stock-name-cell">${s.name}</div></td><td class="col-data ${pnlCls}">${pnlDisp}</td><td class="col-data">${s.qty}</td><td class="col-data">${buyDisp}</td><td class="col-data">${fc(s.avgPrice)}</td><td class="col-wide">${fc(s.breakEven)}</td><td class="col-data">${feeDisp}</td><td class="col-data">USD</td>`;
     const r2=document.createElement('tr'); r2.className='row-bot';
-    r2.innerHTML=`<td class="sticky"><div class="stock-ticker-cell">${s.ticker}</div></td><td class="col-data ${pnlCls}">${pnlSign}${s.pct.toFixed(2)}%</td><td class="col-data">${s.qty}</td><td class="col-data">${fi(s.evalKRW)}</td><td class="col-data ${dayCls}">${fc(s.currentPrice)}</td><td class="col-wide ${dayCls}">${dayPctSign}${Math.abs(s.dayPct).toFixed(2)}%</td><td class="col-data">0</td><td class="col-data">${s.tax.toFixed(2)}</td><td class="col-data">${RATE.toFixed(2)}</td>`;
+    r2.innerHTML=`<td class="sticky"><div class="stock-ticker-cell">${s.ticker}</div></td><td class="col-data ${pnlCls}">${pnlSign}${s.pct.toFixed(2)}%</td><td class="col-data">${s.qty}</td><td class="col-data">${evalDisp}</td><td class="col-data ${dayCls}">${fc(s.currentPrice)}</td><td class="col-wide ${dayCls}">${dayPctSign}${Math.abs(s.dayPct).toFixed(2)}%</td><td class="col-data">${taxUSD.toFixed(2)}</td><td class="col-data">${RATE.toFixed(2)}</td>`;
     tbody.appendChild(r1); tbody.appendChild(r2);
   });
+}
+
+// ====== CURRENCY TOGGLE ======
+let displayCurrency = 'KRW'; // 'KRW' or 'USD'
+const FEE_RATE = 0.0025; // 키움증권 해외주식 매매수수료 0.25%
+
+function setCurrency(cur){
+  displayCurrency = cur;
+  document.getElementById('btnKRW').classList.toggle('active', cur==='KRW');
+  document.getElementById('btnUSD').classList.toggle('active', cur==='USD');
+  renderAccount();
 }
 
 // ====== ACCOUNT DROPDOWN & SWITCHING ======
