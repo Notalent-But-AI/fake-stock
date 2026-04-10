@@ -1000,12 +1000,13 @@ function renderAccount(){
     return;
   }
   data.forEach(s=>{
-    const pnlCls=s.pnl>=0?'c-red':'c-blue', pnlSign=s.pnl>=0?'+':'';
+    const pnlKRW = s.pnl * RATE;
+    const pnlCls=pnlKRW>=0?'c-red':'c-blue', pnlSign=pnlKRW>=0?'+':'';
     const dayCls=s.dayChange>=0?'c-red':'c-blue', dayPctSign=s.dayPct>=0?'+':'-';
     const r1=document.createElement('tr'); r1.className='row-top';
-    r1.innerHTML=`<td class="sticky"><div class="stock-name-cell">${s.name}</div></td><td class="col-data ${pnlCls}">${pnlSign}${fc(s.pnl)}</td><td class="col-data">${s.qty}</td><td class="col-data">${fc(s.buy)}</td><td class="col-data">${fc(s.avgPrice)}</td><td class="col-wide">${fc(s.breakEven)}</td><td class="col-data">0</td><td class="col-data">${s.fee.toFixed(2)}</td><td class="col-data">USD</td>`;
+    r1.innerHTML=`<td class="sticky"><div class="stock-name-cell">${s.name}</div></td><td class="col-data ${pnlCls}">${pnlSign}${fi(pnlKRW)}</td><td class="col-data">${s.qty}</td><td class="col-data">${fi(s.buyKRW)}</td><td class="col-data">${fc(s.avgPrice)}</td><td class="col-wide">${fc(s.breakEven)}</td><td class="col-data">0</td><td class="col-data">${s.fee.toFixed(2)}</td><td class="col-data">USD</td>`;
     const r2=document.createElement('tr'); r2.className='row-bot';
-    r2.innerHTML=`<td class="sticky"><div class="stock-ticker-cell">${s.ticker}</div></td><td class="col-data ${pnlCls}">${pnlSign}${s.pct.toFixed(2)}%</td><td class="col-data">${s.qty}</td><td class="col-data">${fc(s.ev)}</td><td class="col-data ${dayCls}">${fc(s.currentPrice)}</td><td class="col-wide ${dayCls}">${dayPctSign}${Math.abs(s.dayPct).toFixed(2)}%</td><td class="col-data">0</td><td class="col-data">${s.tax.toFixed(2)}</td><td class="col-data">${RATE.toFixed(2)}</td>`;
+    r2.innerHTML=`<td class="sticky"><div class="stock-ticker-cell">${s.ticker}</div></td><td class="col-data ${pnlCls}">${pnlSign}${s.pct.toFixed(2)}%</td><td class="col-data">${s.qty}</td><td class="col-data">${fi(s.evalKRW)}</td><td class="col-data ${dayCls}">${fc(s.currentPrice)}</td><td class="col-wide ${dayCls}">${dayPctSign}${Math.abs(s.dayPct).toFixed(2)}%</td><td class="col-data">0</td><td class="col-data">${s.tax.toFixed(2)}</td><td class="col-data">${RATE.toFixed(2)}</td>`;
     tbody.appendChild(r1); tbody.appendChild(r2);
   });
 }
