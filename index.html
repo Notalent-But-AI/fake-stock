@@ -1184,9 +1184,34 @@ function connectFinnhub(){
 }
 
 let tickRenderPending = false;
+const priceAnimations = {};
+const ANIM_DURATION = 800;
+const ANIM_STEPS = 16;
 
-function applyTickPrice(ticker, price, timestamp){
-  // 데이터 즉시 업데이트 (렌더링 없이)
+function animatePrice(ticker, fromPrice, toPrice){
+  if(priceAnimations[ticker]) cancelAnimationFrame(priceAnimations[ticker]);
+  if(Math.abs(toPrice - fromPrice) < 0.001) return;
+  const diff = toPrice - fromPrice;
+  const stepTime = ANIM_DURATION / ANIM_STEPS;
+  let step = 0;
+
+  function tick(){
+    step++;
+    const progress = step / ANIM_STEPS;
+    const eased = progress < 0.5 ? 2*progress*progress : 1-Math.pow(-2*progress+2,2)/2;
+    const currentPrice = fromPrice + diff * eased;
+    updateAllPriceDisplays(ticker, currentPrice);
+    if(step < ANIM_STEPS){
+      priceAnimations[ticker] = requestAnimationFrame(()=>setTimeout(tick, stepTime));
+    } else {
+      updateAllPriceDisplays(ticker, toPrice);
+      delete priceAnimations[ticker];
+    }
+  }
+  tick();
+}
+
+function updateAllPriceDisplays(ticker, price){
   stocks.forEach(s=>{
     if(s.ticker===ticker){
       const prevClose = s.currentPrice - s.dayChange;
@@ -1212,7 +1237,7 @@ function applyTickPrice(ticker, price, timestamp){
     }
   });
 
-  // 차트 현재가는 즉시 반영 (가벼움)
+  // 차트 현재가 즉시 반영
   if(ticker === currentChartTicker){
     const s = watchlistStocks.find(w=>w.ticker===ticker) || stocks.find(w=>w.ticker===ticker);
     const chg = s ? (s.dayChange || s.change || 0) : 0;
@@ -1224,20 +1249,27 @@ function applyTickPrice(ticker, price, timestamp){
     document.getElementById('chartChange').textContent = `${sign}$${chg.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
     document.getElementById('chartChange').className = cls;
   }
+}
 
-  // 리스트 렌더링은 300ms 쓰로틀 (초당 3번만)
+function applyTickPrice(ticker, price, timestamp){
+  const oldPrice = stocks.find(s=>s.ticker===ticker)?.currentPrice
+    || watchlistStocks.find(s=>s.ticker===ticker)?.price
+    || rankStocks.find(s=>s.ticker===ticker)?.price || price;
+
+  // 가격 애니메이션 시작 (이전→새 가격 부드럽게 전환)
+  animatePrice(ticker, oldPrice, price);
+
+  // 리스트 렌더링은 500ms 쓰로틀
   if(!tickRenderPending){
     tickRenderPending = true;
-    requestAnimationFrame(()=>{
-      setTimeout(()=>{
-        renderWatchlist();
-        renderRankList();
-        renderAccount();
-        renderSettingsResults();
-        updateMarketStatus('regular', timestamp);
-        tickRenderPending = false;
-      }, 300);
-    });
+    setTimeout(()=>{
+      renderWatchlist();
+      renderRankList();
+      renderAccount();
+      renderSettingsResults();
+      updateMarketStatus('regular', timestamp);
+      tickRenderPending = false;
+    }, 500);
   }
 }
 
