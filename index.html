@@ -340,7 +340,7 @@ td.sticky{position:sticky;left:0;z-index:2;text-align:left;padding-left:12px;bac
   <div class="chart-price-big c-red" id="chartPrice">$183.51</div>
   <div class="chart-change-row">
     <span class="c-red" id="chartChange">+$1.45 (+0.79%)</span>
-    <span style="color:var(--sub);font-size:12px">04/10 장마감</span>
+    <span style="color:var(--sub);font-size:12px" id="chartMarketStatus"></span>
   </div>
   <div class="chart-canvas">
     <canvas id="chartCanvas"></canvas>
@@ -862,6 +862,15 @@ async function fetchYahoo(symbol, range='1d', interval='1d'){
   return JSON.parse(wrapper.contents);
 }
 
+function updateMarketStatus(state, lastTime){
+  const el = document.getElementById('chartMarketStatus');
+  if(!el) return;
+  const labels = {regular:'장중', pre:'프리마켓', post:'애프터마켓', closed:'장마감'};
+  const label = labels[state] || '장마감';
+  const timeStr = lastTime ? new Date(lastTime).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).replace('. ','/').replace('. ',' ') : '';
+  el.textContent = timeStr + ' ' + label;
+}
+
 async function fetchPrices(){
   try {
     const allSymbols = ['NVDA','TSLA','USDKRW=X','AAPL','MSFT','AMZN','GOOGL','META','AMD','PLTR','COIN','SMCI','SOFI','IONQ','RGTI','RBLX','CRWD'];
@@ -908,6 +917,10 @@ async function fetchPrices(){
       const d = priceMap[s.ticker];
       if(d){ s.price=d.price; s.change=d.change; s.pct=d.pct; }
     });
+
+    // Update market status display
+    const firstData = priceMap[Object.keys(priceMap).find(k=>k!=='USDKRW')] || {};
+    updateMarketStatus(firstData.marketState, firstData.lastTime);
 
     renderWatchlist();
     renderRankList();
