@@ -95,6 +95,8 @@ body{
 .order-avail{display:flex;justify-content:space-between;padding:8px 16px;background:var(--bg2);border-radius:6px;margin:0 16px 12px;font-size:12px;color:var(--sub)}
 
 /* ===== CHART PAGE ===== */
+.chart-stock-tab{padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;border:1.5px solid #ddd;background:#fff;color:#333;cursor:pointer;white-space:nowrap;transition:all .2s}
+.chart-stock-tab.active{background:#1a1a2e;color:#fff;border-color:#1a1a2e}
 .chart-stock-header{padding:16px;display:flex;align-items:center;gap:12px}
 .chart-stock-header h2{font-size:18px;font-weight:800;flex:1}
 .chart-price-big{font-size:26px;font-weight:800;padding:0 16px}
@@ -333,6 +335,7 @@ td.sticky{position:sticky;left:0;z-index:2;text-align:left;padding-left:12px;bac
 
 <!-- ===== 차트 PAGE ===== -->
 <div class="page" id="page-chart">
+  <div class="chart-stock-tabs" id="chartStockTabs" style="display:flex;gap:8px;padding:8px 16px;overflow-x:auto"></div>
   <div class="chart-stock-header">
     <h2>엔비디아</h2>
     <span style="font-size:13px;color:var(--sub)">NVDA</span>
@@ -514,11 +517,29 @@ function switchPage(pageId){
   document.getElementById('page-'+pageId).classList.add('active');
   document.querySelectorAll('.bnav-item').forEach(b=>b.classList.remove('active'));
   document.querySelector(`.bnav-item[data-page="${pageId}"]`).classList.add('active');
+  if(pageId==='chart') renderChartTabs();
 }
 
 // ====== 종목 클릭 → 차트 이동 ======
 let currentChartTicker = 'NVDA';
 let currentChartName = '엔비디아';
+
+function renderChartTabs(){
+  const allStocks = [...stocks.map(s=>({ticker:s.ticker, name:s.name})), ...watchlistStocks.filter(w=>!stocks.find(s=>s.ticker===w.ticker)).map(s=>({ticker:s.ticker, name:s.name}))];
+  const container = document.getElementById('chartStockTabs');
+  container.innerHTML = allStocks.map(s=>{
+    const active = s.ticker === currentChartTicker ? ' active' : '';
+    return `<button class="chart-stock-tab${active}" onclick="selectChartStock('${s.ticker}','${s.name}')">${s.name}</button>`;
+  }).join('');
+}
+
+function selectChartStock(ticker, name){
+  const s = watchlistStocks.find(w=>w.ticker===ticker) || stocks.find(w=>w.ticker===ticker);
+  const price = s ? (s.currentPrice || s.price) : 0;
+  const change = s ? (s.dayChange || s.change || 0) : 0;
+  const pct = s ? (s.dayPct || s.pct || 0) : 0;
+  goToChart(ticker, name, price, change, pct);
+}
 
 function goToChart(ticker, name, price, change, pct){
   currentChartTicker = ticker;
@@ -532,6 +553,7 @@ function goToChart(ticker, name, price, change, pct){
   document.getElementById('chartPrice').className = 'chart-price-big ' + cls;
   document.getElementById('chartChange').textContent = `${sign}$${change.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
   document.getElementById('chartChange').className = cls;
+  renderChartTabs();
   switchPage('chart');
   fetchChartData(currentPeriod);
 }
