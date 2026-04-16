@@ -846,8 +846,14 @@ function setChartPeriod(period){
   fetchChartData(period);
 }
 
-// ====== YAHOO FINANCE API (allorigins proxy) ======
+// ====== YAHOO FINANCE API (Vercel Serverless + allorigins fallback) ======
 async function fetchYahoo(symbol, range='1d', interval='1d'){
+  // 1차: Vercel 자체 API
+  try {
+    const res = await fetch(`/api/chart?symbol=${encodeURIComponent(symbol)}&range=${range}&interval=${interval}`);
+    if(res.ok) return await res.json();
+  } catch(e){}
+  // 2차 폴백: allorigins 프록시
   const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}`;
   const url = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
   const res = await fetch(url);
@@ -861,15 +867,28 @@ async function fetchPrices(){
     const allSymbols = ['NVDA','TSLA','USDKRW=X','AAPL','MSFT','AMZN','GOOGL','META','AMD','PLTR','COIN','SMCI','SOFI','IONQ','RGTI','RBLX','CRWD'];
     const priceMap = {};
 
-    const results = await Promise.allSettled(allSymbols.map(s=>fetchYahoo(s)));
-    results.forEach((r,i)=>{
-      if(r.status==='fulfilled' && r.value.chart && r.value.chart.result){
-        const meta = r.value.chart.result[0].meta;
-        const sym = allSymbols[i].replace('=X','');
-        const prev = meta.chartPreviousClose || meta.previousClose;
-        priceMap[sym] = { price:meta.regularMarketPrice, prevClose:prev, change:meta.regularMarketPrice-prev, pct:((meta.regularMarketPrice-prev)/prev)*100 };
+    // 1차: Vercel 자체 API로 전 종목 일괄 조회
+    try {
+      const apiRes = await fetch(`/api/prices?symbols=${allSymbols.join(',')}`);
+      if(!apiRes.ok) throw new Error('API error');
+      const apiJson = await apiRes.json();
+      if(apiJson.ok){
+        Object.entries(apiJson.data).forEach(([sym, d])=>{
+          if(d) priceMap[sym] = { price:d.price, prevClose:d.previousClose, change:d.change, pct:d.changePct };
+        });
       }
-    });
+    } catch(e){
+      // 2차 폴백: allorigins 프록시로 개별 조회
+      const results = await Promise.allSettled(allSymbols.map(s=>fetchYahoo(s)));
+      results.forEach((r,i)=>{
+        if(r.status==='fulfilled' && r.value.chart && r.value.chart.result){
+          const meta = r.value.chart.result[0].meta;
+          const sym = allSymbols[i].replace('=X','');
+          const prev = meta.chartPreviousClose || meta.previousClose;
+          priceMap[sym] = { price:meta.regularMarketPrice, prevClose:prev, change:meta.regularMarketPrice-prev, pct:((meta.regularMarketPrice-prev)/prev)*100 };
+        }
+      });
+    }
 
     // Update portfolio stocks
     stocks.forEach(s=>{
