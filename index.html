@@ -1183,15 +1183,16 @@ function connectFinnhub(){
   finnhubWs.onerror = (e)=>{ console.warn('Finnhub WS 에러:', e); };
 }
 
+let tickRenderPending = false;
+
 function applyTickPrice(ticker, price, timestamp){
-  let changed = false;
+  // 데이터 즉시 업데이트 (렌더링 없이)
   stocks.forEach(s=>{
     if(s.ticker===ticker){
       const prevClose = s.currentPrice - s.dayChange;
       s.currentPrice = price;
       s.dayChange = price - prevClose;
       s.dayPct = (s.dayChange / prevClose) * 100;
-      changed = true;
     }
   });
   watchlistStocks.forEach(s=>{
@@ -1200,7 +1201,6 @@ function applyTickPrice(ticker, price, timestamp){
       s.price = price;
       s.change = price - prevClose;
       s.pct = (s.change / prevClose) * 100;
-      changed = true;
     }
   });
   rankStocks.forEach(s=>{
@@ -1209,27 +1209,35 @@ function applyTickPrice(ticker, price, timestamp){
       s.price = price;
       s.change = price - prevClose;
       s.pct = (s.change / prevClose) * 100;
-      changed = true;
     }
   });
-  if(changed){
-    renderWatchlist();
-    renderRankList();
-    renderAccount();
-    renderSettingsResults();
-    // 차트 페이지 현재가 업데이트
-    if(ticker === currentChartTicker){
-      const s = watchlistStocks.find(w=>w.ticker===ticker) || stocks.find(w=>w.ticker===ticker);
-      const chg = s ? (s.dayChange || s.change || 0) : 0;
-      const pct = s ? (s.dayPct || s.pct || 0) : 0;
-      const cls = chg >= 0 ? 'c-red' : 'c-blue';
-      const sign = chg >= 0 ? '+' : '';
-      document.getElementById('chartPrice').textContent = '$' + price.toFixed(2);
-      document.getElementById('chartPrice').className = 'chart-price-big ' + cls;
-      document.getElementById('chartChange').textContent = `${sign}$${chg.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
-      document.getElementById('chartChange').className = cls;
-    }
-    updateMarketStatus('regular', timestamp);
+
+  // 차트 현재가는 즉시 반영 (가벼움)
+  if(ticker === currentChartTicker){
+    const s = watchlistStocks.find(w=>w.ticker===ticker) || stocks.find(w=>w.ticker===ticker);
+    const chg = s ? (s.dayChange || s.change || 0) : 0;
+    const pct = s ? (s.dayPct || s.pct || 0) : 0;
+    const cls = chg >= 0 ? 'c-red' : 'c-blue';
+    const sign = chg >= 0 ? '+' : '';
+    document.getElementById('chartPrice').textContent = '$' + price.toFixed(2);
+    document.getElementById('chartPrice').className = 'chart-price-big ' + cls;
+    document.getElementById('chartChange').textContent = `${sign}$${chg.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
+    document.getElementById('chartChange').className = cls;
+  }
+
+  // 리스트 렌더링은 300ms 쓰로틀 (초당 3번만)
+  if(!tickRenderPending){
+    tickRenderPending = true;
+    requestAnimationFrame(()=>{
+      setTimeout(()=>{
+        renderWatchlist();
+        renderRankList();
+        renderAccount();
+        renderSettingsResults();
+        updateMarketStatus('regular', timestamp);
+        tickRenderPending = false;
+      }, 300);
+    });
   }
 }
 
