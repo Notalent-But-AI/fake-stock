@@ -1153,12 +1153,93 @@ function rotateChatMsg(){
 }
 setInterval(rotateChatMsg, 4000);
 
+// ====== FINNHUB WEBSOCKET (실시간 틱) ======
+const FINNHUB_KEY = 'd7gecbhr01qmqj451gmgd7gecbhr01qmqj451gn0';
+let finnhubWs = null;
+const tickSubscriptions = new Set();
+
+function connectFinnhub(){
+  if(finnhubWs && finnhubWs.readyState <= 1) return;
+  finnhubWs = new WebSocket(`wss://ws.finnhub.io?token=${FINNHUB_KEY}`);
+  finnhubWs.onopen = ()=>{
+    console.log('Finnhub WebSocket 연결됨');
+    const allTickers = new Set([...stocks.map(s=>s.ticker), ...watchlistStocks.map(s=>s.ticker), ...rankStocks.map(s=>s.ticker)]);
+    allTickers.forEach(t=>{
+      finnhubWs.send(JSON.stringify({type:'subscribe', symbol:t}));
+      tickSubscriptions.add(t);
+    });
+  };
+  finnhubWs.onmessage = (e)=>{
+    const msg = JSON.parse(e.data);
+    if(msg.type !== 'trade' || !msg.data) return;
+    msg.data.forEach(trade=>{
+      const sym = trade.s;
+      const price = trade.p;
+      const time = trade.t;
+      applyTickPrice(sym, price, time);
+    });
+  };
+  finnhubWs.onclose = ()=>{ console.log('Finnhub WS 닫힘, 5초 후 재연결'); setTimeout(connectFinnhub, 5000); };
+  finnhubWs.onerror = (e)=>{ console.warn('Finnhub WS 에러:', e); };
+}
+
+function applyTickPrice(ticker, price, timestamp){
+  let changed = false;
+  stocks.forEach(s=>{
+    if(s.ticker===ticker){
+      const prevClose = s.currentPrice - s.dayChange;
+      s.currentPrice = price;
+      s.dayChange = price - prevClose;
+      s.dayPct = (s.dayChange / prevClose) * 100;
+      changed = true;
+    }
+  });
+  watchlistStocks.forEach(s=>{
+    if(s.ticker===ticker){
+      const prevClose = s.price - s.change;
+      s.price = price;
+      s.change = price - prevClose;
+      s.pct = (s.change / prevClose) * 100;
+      changed = true;
+    }
+  });
+  rankStocks.forEach(s=>{
+    if(s.ticker===ticker){
+      const prevClose = s.price - s.change;
+      s.price = price;
+      s.change = price - prevClose;
+      s.pct = (s.change / prevClose) * 100;
+      changed = true;
+    }
+  });
+  if(changed){
+    renderWatchlist();
+    renderRankList();
+    renderAccount();
+    renderSettingsResults();
+    // 차트 페이지 현재가 업데이트
+    if(ticker === currentChartTicker){
+      const s = watchlistStocks.find(w=>w.ticker===ticker) || stocks.find(w=>w.ticker===ticker);
+      const chg = s ? (s.dayChange || s.change || 0) : 0;
+      const pct = s ? (s.dayPct || s.pct || 0) : 0;
+      const cls = chg >= 0 ? 'c-red' : 'c-blue';
+      const sign = chg >= 0 ? '+' : '';
+      document.getElementById('chartPrice').textContent = '$' + price.toFixed(2);
+      document.getElementById('chartPrice').className = 'chart-price-big ' + cls;
+      document.getElementById('chartChange').textContent = `${sign}$${chg.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
+      document.getElementById('chartChange').className = cls;
+    }
+    updateMarketStatus('regular', timestamp);
+  }
+}
+
 // ====== INIT ======
 renderWatchlist();
 renderRankList();
 renderSettings();
 fetchPrices();
-setInterval(fetchPrices, 3000);
+setInterval(fetchPrices, 10000);
+connectFinnhub();
 fetchChartData('1M');
 window.addEventListener('resize', drawChart);
 </script>
