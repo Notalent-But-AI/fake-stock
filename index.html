@@ -95,9 +95,19 @@ body{
 .order-avail{display:flex;justify-content:space-between;padding:8px 16px;background:var(--bg2);border-radius:6px;margin:0 16px 12px;font-size:12px;color:var(--sub)}
 
 /* ===== CHART PAGE ===== */
-.chart-stock-tab{padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;border:1.5px solid #ddd;background:#fff;color:#333;cursor:pointer;white-space:nowrap;transition:all .2s}
-.chart-stock-tab.active{background:#1a1a2e;color:#fff;border-color:#1a1a2e}
 .chart-stock-header{padding:16px;display:flex;align-items:center;gap:12px}
+.chart-dropdown{display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);z-index:100;max-height:320px;overflow:hidden;flex-direction:column}
+.chart-dropdown.show{display:flex}
+.chart-dropdown-search{border:none;border-bottom:1px solid #eee;padding:12px 16px;font-size:14px;outline:none;font-family:inherit}
+.chart-dropdown-list{overflow-y:auto;max-height:260px}
+.chart-dropdown-item{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;transition:background .15s}
+.chart-dropdown-item:active{background:#f0f0f0}
+.chart-dropdown-item.selected{background:#f5f5ff}
+.chart-dropdown-item-name{font-size:14px;font-weight:600}
+.chart-dropdown-item-ticker{font-size:12px;color:var(--sub)}
+.chart-dropdown-item-price{margin-left:auto;text-align:right}
+.chart-dropdown-item-price .price{font-size:14px;font-weight:600}
+.chart-dropdown-item-price .change{font-size:11px}
 .chart-stock-header h2{font-size:18px;font-weight:800;flex:1}
 .chart-price-big{font-size:26px;font-weight:800;padding:0 16px}
 .chart-change-row{display:flex;gap:8px;padding:4px 16px 16px;font-size:14px;font-weight:600}
@@ -335,10 +345,14 @@ td.sticky{position:sticky;left:0;z-index:2;text-align:left;padding-left:12px;bac
 
 <!-- ===== 차트 PAGE ===== -->
 <div class="page" id="page-chart">
-  <div class="chart-stock-tabs" id="chartStockTabs" style="display:flex;gap:8px;padding:8px 16px;overflow-x:auto"></div>
-  <div class="chart-stock-header">
-    <h2>엔비디아</h2>
-    <span style="font-size:13px;color:var(--sub)">NVDA</span>
+  <div class="chart-stock-header" style="cursor:pointer;position:relative" onclick="toggleChartDropdown(event)">
+    <h2 id="chartStockName">엔비디아</h2>
+    <span style="font-size:13px;color:var(--sub)" id="chartStockTicker">NVDA</span>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:auto"><polyline points="6 9 12 15 18 9"/></svg>
+    <div class="chart-dropdown" id="chartDropdown">
+      <input class="chart-dropdown-search" id="chartSearchInput" type="text" placeholder="종목명 또는 티커 검색" onclick="event.stopPropagation()" oninput="filterChartDropdown(this.value)">
+      <div class="chart-dropdown-list" id="chartDropdownList"></div>
+    </div>
   </div>
   <div class="chart-price-big c-red" id="chartPrice">$183.51</div>
   <div class="chart-change-row">
@@ -517,28 +531,54 @@ function switchPage(pageId){
   document.getElementById('page-'+pageId).classList.add('active');
   document.querySelectorAll('.bnav-item').forEach(b=>b.classList.remove('active'));
   document.querySelector(`.bnav-item[data-page="${pageId}"]`).classList.add('active');
-  if(pageId==='chart') renderChartTabs();
 }
 
 // ====== 종목 클릭 → 차트 이동 ======
 let currentChartTicker = 'NVDA';
 let currentChartName = '엔비디아';
 
-function renderChartTabs(){
-  const allStocks = [...stocks.map(s=>({ticker:s.ticker, name:s.name})), ...watchlistStocks.filter(w=>!stocks.find(s=>s.ticker===w.ticker)).map(s=>({ticker:s.ticker, name:s.name}))];
-  const container = document.getElementById('chartStockTabs');
-  container.innerHTML = allStocks.map(s=>{
-    const active = s.ticker === currentChartTicker ? ' active' : '';
-    return `<button class="chart-stock-tab${active}" onclick="selectChartStock('${s.ticker}','${s.name}')">${s.name}</button>`;
+function getAllChartStocks(){
+  const seen = new Set();
+  const result = [];
+  [...stocks, ...watchlistStocks, ...rankStocks].forEach(s=>{
+    if(seen.has(s.ticker)) return;
+    seen.add(s.ticker);
+    result.push({ticker:s.ticker, name:s.name, price:s.currentPrice||s.price||0, change:s.dayChange||s.change||0, pct:s.dayPct||s.pct||0});
+  });
+  return result;
+}
+
+function renderChartDropdown(filter=''){
+  const list = document.getElementById('chartDropdownList');
+  const q = filter.toLowerCase();
+  const items = getAllChartStocks().filter(s=>!q || s.name.toLowerCase().includes(q) || s.ticker.toLowerCase().includes(q));
+  list.innerHTML = items.map(s=>{
+    const cls = s.change>=0?'c-red':'c-blue';
+    const sign = s.change>=0?'+':'';
+    const sel = s.ticker===currentChartTicker?' selected':'';
+    return `<div class="chart-dropdown-item${sel}" onclick="event.stopPropagation();selectChartStock('${s.ticker}','${s.name}')">
+      <div><div class="chart-dropdown-item-name">${s.name}</div><div class="chart-dropdown-item-ticker">${s.ticker}</div></div>
+      <div class="chart-dropdown-item-price"><div class="price ${cls}">$${s.price.toFixed(2)}</div><div class="change ${cls}">${sign}${s.pct.toFixed(2)}%</div></div>
+    </div>`;
   }).join('');
 }
 
+function toggleChartDropdown(e){
+  const dd = document.getElementById('chartDropdown');
+  const isOpen = dd.classList.contains('show');
+  if(isOpen){dd.classList.remove('show');return;}
+  dd.classList.add('show');
+  document.getElementById('chartSearchInput').value='';
+  renderChartDropdown();
+  setTimeout(()=>document.addEventListener('click',closeChartDropdown,{once:true}),0);
+}
+function closeChartDropdown(){document.getElementById('chartDropdown').classList.remove('show');}
+function filterChartDropdown(val){renderChartDropdown(val);}
+
 function selectChartStock(ticker, name){
-  const s = watchlistStocks.find(w=>w.ticker===ticker) || stocks.find(w=>w.ticker===ticker);
-  const price = s ? (s.currentPrice || s.price) : 0;
-  const change = s ? (s.dayChange || s.change || 0) : 0;
-  const pct = s ? (s.dayPct || s.pct || 0) : 0;
-  goToChart(ticker, name, price, change, pct);
+  document.getElementById('chartDropdown').classList.remove('show');
+  const s = getAllChartStocks().find(w=>w.ticker===ticker);
+  goToChart(ticker, name, s?s.price:0, s?s.change:0, s?s.pct:0);
 }
 
 function goToChart(ticker, name, price, change, pct){
@@ -547,13 +587,12 @@ function goToChart(ticker, name, price, change, pct){
   const isUp = change >= 0;
   const cls = isUp ? 'c-red' : 'c-blue';
   const sign = change >= 0 ? '+' : '';
-  document.querySelector('#page-chart .chart-stock-header h2').textContent = name;
-  document.querySelector('#page-chart .chart-stock-header span').textContent = ticker;
   document.getElementById('chartPrice').textContent = '$' + price.toFixed(2);
   document.getElementById('chartPrice').className = 'chart-price-big ' + cls;
   document.getElementById('chartChange').textContent = `${sign}$${change.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
   document.getElementById('chartChange').className = cls;
-  renderChartTabs();
+  document.getElementById('chartStockName').textContent = name;
+  document.getElementById('chartStockTicker').textContent = ticker;
   switchPage('chart');
   fetchChartData(currentPeriod);
 }
