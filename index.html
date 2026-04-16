@@ -1185,9 +1185,9 @@ function connectFinnhub(){
 
 // ====== 틱 보간 엔진 (60/min → 900/min 시뮬레이션) ======
 const tickEngine = {};
-const TICK_INTERVAL = 67; // 67ms = 초당 15회 = 900/min
 let tickLoopRunning = false;
-let listRenderPending = false;
+let lastListRender = 0;
+const LIST_RENDER_INTERVAL = 500;
 
 function initTickEngine(ticker, price){
   tickEngine[ticker] = {
@@ -1214,8 +1214,13 @@ function applyTickPrice(ticker, price, timestamp){
 
 function startTickLoop(){
   tickLoopRunning = true;
-  setInterval(()=>{
-    let anyMoved = false;
+  let lastFrame = 0;
+
+  function loop(now){
+    requestAnimationFrame(loop);
+    if(now - lastFrame < 67) return;
+    lastFrame = now;
+
     Object.keys(tickEngine).forEach(ticker=>{
       const te = tickEngine[ticker];
       const elapsed = Date.now() - te.lastRealTick;
@@ -1223,33 +1228,29 @@ function startTickLoop(){
 
       if(Math.abs(diff) < 0.001 && elapsed > 2000) return;
 
-      // 실제 틱 방향으로 빠르게 수렴 + 미세 노이즈
       const step = diff * 0.15;
       const noise = (Math.random() - 0.5) * Math.abs(te.velocity) * 0.08;
       const drift = elapsed > 1000 ? te.velocity * 0.002 : 0;
       te.displayPrice += step + noise + drift;
 
-      // 오버슈트 방지
       if((step > 0 && te.displayPrice > te.targetPrice) || (step < 0 && te.displayPrice < te.targetPrice)){
         te.displayPrice = te.targetPrice;
       }
 
       updatePriceData(ticker, te.displayPrice);
       updateChartPrice(ticker, te.displayPrice);
-      anyMoved = true;
     });
 
-    if(anyMoved && !listRenderPending){
-      listRenderPending = true;
-      requestAnimationFrame(()=>{
-        renderWatchlist();
-        renderRankList();
-        renderAccount();
-        renderSettingsResults();
-        listRenderPending = false;
-      });
+    // 리스트 렌더링은 500ms마다만
+    if(now - lastListRender > LIST_RENDER_INTERVAL){
+      lastListRender = now;
+      renderWatchlist();
+      renderRankList();
+      renderAccount();
+      renderSettingsResults();
     }
-  }, TICK_INTERVAL);
+  }
+  requestAnimationFrame(loop);
 }
 
 function updatePriceData(ticker, price){
